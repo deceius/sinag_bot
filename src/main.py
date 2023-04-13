@@ -70,13 +70,13 @@ class PlumaClient(discord.Client):
                 memberData = UserDb().get_member_data(member.id)
                 if not memberData:
                     logging.info(f"`Purge`: Member { member.display_name } is not registered... Purging perms...")
-                    await self.remove_perms(member.id, guild['roleId'], False)
+                    await self.remove_perms(member.id, guild['roleId'], True)
                 else:
                     charData = battle_data.lookupCharacter(memberData['charId'])
                     logging.info(f"`Purge`: Checking Member { charData['Name'] } [{ charData['GuildName']}]...")
                     if not charData['GuildId'] in GuildDb().get_guilds():
                         logging.info(f"`Purge`: Member { member['userId'] } is not found in-game as a guild member. Purging perms...")
-                        await self.remove_perms(memberData['userId'], guild['roleId'], False)
+                        await self.remove_perms(memberData['userId'], guild['roleId'], True)
                     else:
                         logging.info(f"`Purge`: Member { charData['Name'] } is a guild member in-game.")
         await channel.send(file=discord.File(file_path.logs))
@@ -86,13 +86,13 @@ class PlumaClient(discord.Client):
     async def before_purge_perms(self):
         await self.wait_until_ready()
 
-    async def remove_perms(self, userId, guildId, enabled = True):
+    async def remove_perms(self, userId, roleId, enabled = True):
         if enabled:
             UserDb().remove_user(userId)
             sinagServer = self.get_guild(1067373452618637402)
             sinagMember = sinagServer.get_member(userId)
             if sinagMember:
-                guildRole = get(sinagServer.roles, id = GuildDb().get_guild_role(guildId)['roleId'])
+                guildRole = get(sinagServer.roles, id = roleId)
                 await sinagMember.remove_roles(guildRole)
         else:
             logging.info(f"**** `Purge`: Purge not enabled. This is for validation only.")
@@ -131,7 +131,9 @@ async def register(interaction: discord.Interaction, ign: str):
         successRegistered = battle_data.registerIGN(ign, interaction.user, characterData['Id'], characterData['GuildId'])
         if successRegistered:
             guildRole = get(interaction.guild.roles, id = GuildDb().get_guild_role(characterData['GuildId'])['roleId'])
+            applicantRole = get(interaction.guild.roles, id = 1084904105203466312)
             await interaction.user.add_roles(guildRole)
+            await interaction.user.remove_roles(applicantRole)
             characterData = battle_data.lookupCharacter(characterData['Id'])
             img = battle_data.infoImage(characterData)
             await interaction.followup.send(content=f"{interaction.user.mention} is now bound to `{ characterData['Name'] }`. Guild: `{ characterData['GuildName'] }`", file = img[0], view = img[1])
